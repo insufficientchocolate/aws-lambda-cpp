@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 11)
+include(cmake/HunterGate.cmake)
+
+HunterGate(
+    URL "https://github.com/ruslo/hunter/archive/v0.23.71.tar.gz"
+    SHA1 "5342b852c620cf482144a4edf2686b4a64d68cda"
+    LOCAL
+)
+
 project(aws-lambda-runtime
     VERSION 0.1.0
-    LANGUAGES CXX)
+    LANGUAGES CXX
+)
+
 
 option(ENABLE_TESTS "Enables building the test project, requires AWS C++ SDK." OFF)
 
@@ -35,9 +45,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+
+hunter_add_package(CURL)
 find_package(CURL REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${CURL_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
 if(HAVE_BACKTRACE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE -DHAVE_BACKTRACE)
