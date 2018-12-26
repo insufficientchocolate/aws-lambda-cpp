@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 11)
+include(cmake/HunterGate.cmake)
+
+HunterGate(
+    URL "https://github.com/ruslo/hunter/archive/v0.23.83.tar.gz"
+    SHA1 "12dec078717539eb7b03e6d2a17797cba9be9ba9"
+)
+
 project(aws-lambda-runtime
     VERSION 0.1.0
     LANGUAGES CXX)
@@ -33,9 +40,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
-find_package(CURL REQUIRED)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${CURL_INCLUDE_DIRS})
+hunter_add_package(CURL)
+find_package(CURL CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
 if(HAVE_BACKTRACE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE -DHAVE_BACKTRACE)
@@ -64,6 +71,7 @@ if ((BUILD_SHARED_LIBS) AND (LTO_CAPABLE))
     target_link_libraries(${PROJECT_NAME} PRIVATE "-flto")
 endif()
 
+
 #tests
 if (ENABLE_TESTS)
     enable_testing()
@@ -76,6 +84,7 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/version.cpp"
     NEWLINE_STYLE LF)
 
+
 # installation
 install(FILES "include/aws/lambda-runtime/runtime.h" "include/aws/lambda-runtime/version.h"
     DESTINATION "include/aws/lambda-runtime")
@@ -83,25 +92,38 @@ install(FILES "include/aws/lambda-runtime/runtime.h" "include/aws/lambda-runtime
 install(FILES "include/aws/logging/logging.h"
     DESTINATION "include/aws/logging")
 
+include(GNUInstallDirs)
+
 install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-targets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
-configure_file("${CMAKE_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-    @ONLY)
+include(CMakePackageConfigHelpers)
 
-export(EXPORT "${PROJECT_NAME}-targets" NAMESPACE AWS::)
+set(project_config_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+set(project_config "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake")
+
+# Use:
+#   * CMAKE_PROJECT_NAME
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in"
+    "${project_config}"
+    INSTALL_DESTINATION "${project_config_dir}"
+)
+
+set(NAMESPACE AWS::)
+
+export(EXPORT "${PROJECT_NAME}-targets" NAMESPACE "${NAMESPACE}")
 
 install(EXPORT "${PROJECT_NAME}-targets"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/cmake/"
-    NAMESPACE AWS::)
+    DESTINATION "${project_config_dir}"
+    NAMESPACE "${NAMESPACE}")
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/cmake/")
+install(FILES "${project_config}"
+    DESTINATION "${project_config_dir}")
 
 install(PROGRAMS "${CMAKE_SOURCE_DIR}/packaging/packager"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/cmake/")
+    DESTINATION "${project_config_dir}")
 
